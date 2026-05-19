@@ -1,45 +1,68 @@
 package reader
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
-  "bufio"
 )
 
-func ReadFile(file_path string) ([]byte, error) {
-  data, err := os.ReadFile(file_path)
-
-  if err != nil {
-    fmt.Printf("[Error]: File read error %s\n", err)
-    return nil, err
-  }
-
-	return data, nil
+type File struct {
+	filePath string
+	data     []byte
+	lines    int
+	loaded   bool
 }
 
-func CountFileLines(file_path string) (int ,error){
-  
-  var lines int
-
-  file, err := os.Open(file_path)
-  if err != nil {
-    fmt.Printf("[Error]: CountFileLines -> Open file error: %s\n", err)
-    return 0, err
-  }
-
-  defer file.Close()
-  
-  scanner := bufio.NewScanner(file)
-
-  for scanner.Scan() {
-    lines++
-  }
-
-  if err := scanner.Err(); err != nil {
-    fmt.Printf("[Error]: CountFileLines -> Scanner error: %s\n ", err)
-    return 0, err
-  }
-
-  return lines, nil
-
+func NewFile(path string) *File {
+	return &File{
+		filePath: path,
+	}
 }
+
+func (f *File) load() error {
+	if f.loaded {
+		return nil
+	}
+
+	data, err := os.ReadFile(f.filePath)
+	if err != nil {
+		return fmt.Errorf("erro ao ler arquivo: %w", err)
+	}
+
+	f.data = data
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+
+	lines := 0
+
+	for scanner.Scan() {
+		lines++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("erro ao contar linhas: %w", err)
+	}
+
+	f.lines = lines
+	f.loaded = true
+
+	return nil
+}
+
+func (f *File) Read() ([]byte, error) {
+	if err := f.load(); err != nil {
+		return nil, err
+	}
+
+	return f.data, nil
+}
+
+func (f *File) CountLines() (int, error) {
+	if err := f.load(); err != nil {
+		return 0, err
+	}
+
+	return f.lines, nil
+}
+
